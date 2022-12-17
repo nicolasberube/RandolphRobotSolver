@@ -264,6 +264,11 @@ class TMap():
             algorithms, since this information is technically in [moves].
             Default is [-1, -1] for each robot, meaning that no collision
             is needed with that particular robot.
+
+        Returns
+        -------
+        1D np.array
+            indexes of the Tmap that were removed during the function call
         """
         add_vector = np.array((list(position) + [len(moves)] +
                                [0]*4 + [level] + list(conditions)),
@@ -1017,6 +1022,11 @@ class Board():
             if a collision is necessary to reach the position.
             Default is None, which means the collision is on a wall
             and not a robot.
+
+        Returns
+        -------
+        1D np.array
+            indexes of the Tmap that were removed during the function call
         """
         robot_tmap = self.robots_tmaps[robot_id]
         final_moves = robot_tmap.all_moves[tmap_id].copy()
@@ -1218,7 +1228,7 @@ class Board():
                 # If robot collides with robot2 on its starting position
                 if tmap2.get_moves_length()[tmap2_id] == 0:
                     starting_collision_flag = True
-                    # Computing positions to move robot2 so it does not collide
+                    # Computing positions to move robot2 so it does not collide 
                     max_length = 0
                     tmap2_ids_subset = np.array([], dtype=int)
                     tmap2_ids_subset_forbidden = np.hstack([
@@ -1238,13 +1248,18 @@ class Board():
                             if idx not in tmap2_ids_subset_forbidden
                             ]
                     for tmap2_id_subset in tmap2_ids_subset:
-                        self.add_to_tmap(robot_id,
-                                         wall_position,
-                                         tmap_id,
-                                         direction,
-                                         level+1,
-                                         robot2_id,
-                                         tmap2_id_subset)
+                        removed_ids = self.add_to_tmap(robot_id,
+                                                       wall_position,
+                                                       tmap_id,
+                                                       direction,
+                                                       level+1,
+                                                       robot2_id,
+                                                       tmap2_id_subset)
+                        if removed_ids is not None:
+                            if tmap_id in removed_ids:
+                                raise Exception('An error has occurred')
+                            tmap_id -= (removed_ids < tmap_id).sum()
+                        
                 if direction == 'U':
                     end_row = tmap2.get_positions()[tmap2_id, 0]+1
                     end_col = wall_position[1]
@@ -1258,13 +1273,17 @@ class Board():
                     end_row = wall_position[0]
                     end_col = tmap2.get_positions()[tmap2_id, 1]-1
                 final_position = [end_row, end_col]
-                self.add_to_tmap(robot_id,
-                                 final_position,
-                                 tmap_id,
-                                 direction,
-                                 level+1,
-                                 robot2_id,
-                                 tmap2_id)
+                removed_ids = self.add_to_tmap(robot_id,
+                                               final_position,
+                                               tmap_id,
+                                               direction,
+                                               level+1,
+                                               robot2_id,
+                                               tmap2_id)
+                if removed_ids is not None:
+                    if tmap_id in removed_ids:
+                        raise Exception('An error has occurred')
+                    tmap_id -= (removed_ids < tmap_id).sum()
 
         if not starting_collision_flag:
             self.add_to_tmap(robot_id,
@@ -1416,7 +1435,10 @@ class Board():
                 self.explore_tmap(robot_id)
             else:
                 self.explore_all_tmaps()
-        paths = self.check_destination(robot_id, destination)
+            paths = self.check_destination(robot_id, destination)
+            if len(paths):
+                print(f'{len(paths)} solution found with '
+                      f'{len(paths[0])} moves.')
         return paths
 
 
@@ -1424,5 +1446,6 @@ if __name__ == '__main__':
     # Integration test
     board = Board(['RED1', 'BLUE1', 'YELLOW1', 'GREEN1'],
                   np.array([[0, 1], [4, 6], [2, 3], [0, 4]]))
+
     board.print()
     paths = board.solve('BLUE', 'PLANET')
