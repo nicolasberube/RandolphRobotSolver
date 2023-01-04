@@ -17,10 +17,7 @@ This algorithm does not handle re-collisions.
 For efficiency's sake, the algorithm can't process that
 a robot can collide twice on the same robot.
 
-The Gray robot and the BlackHole goal is not coded yet.
-
-Bumpers are not implemented either.
-
+Bumpers are not implemented.
 All tiles data are not entered in tiles.json.
 Only one group of tiles was done so far.
 """
@@ -590,8 +587,13 @@ class Board():
         if len(tiles_names) != 4:
             raise Exception('Please specidy 4 tiles names in clockwise manner '
                             'starting from top left.')
-        self.robots_colors = ['RED', 'BLUE', 'GREEN', 'YELLOW']
         self.robots_positions = robots_positions
+        if len(robots_positions) == 4:
+            self.robots_colors = ['RED', 'BLUE', 'GREEN', 'YELLOW']
+        elif len(robots_positions) == 5:
+            self.robots_colors = ['RED', 'BLUE', 'GREEN', 'YELLOW', 'KBLACK']
+        else:
+            raise Exception('Please enter 4 or 5 initial positions.')
         self.robots_tmaps = {i_p: TMap(i_p,
                                        self.robots_positions[i_p],
                                        self.robots_colors)
@@ -684,7 +686,8 @@ class Board():
             shift_index = self.robots_colors.index(tile_color)
             goal_shapes = shape_list[-shift_index:] + shape_list[:-shift_index]
             goal_list = [(self.robots_colors[i], goal_shapes[i])
-                         for i in range(len(self.robots_colors))]
+                         for i in range(len(self.robots_colors))
+                         if self.robots_colors[i] != 'KBLACK']
             if tile_color == 'YELLOW':
                 goal_list.append(('BLACK', 'HOLE'))
             for i, (row, col) in enumerate(tiles_data[tile_name]['goals']):
@@ -1425,27 +1428,36 @@ class Board():
             The list will be of length > 1 if multiple Moves() list can
             reach the position in the same number of moves.
         """
-        robot_id = self.get_robot_id(color)
+        if color.upper() == 'BLACK':
+            robot_id = -1
+        else:
+            robot_id = self.get_robot_id(color)
         destination = self.goals[(color, shape)]
         n_steps = len(self.robots_colors)
-        n_steps = 4
         for i_step in range(n_steps):
             print(f'Step {i_step+1}/{n_steps}')
-            if i_step == n_steps-1:
+            if i_step == n_steps-1 and robot_id != -1:
                 self.explore_tmap(robot_id)
             else:
                 self.explore_all_tmaps()
-            paths = self.check_destination(robot_id, destination)
-            if len(paths):
-                print(f'{len(paths)} solution found with '
-                      f'{len(paths[0])} moves.')
+            if robot_id != -1:
+                paths = self.check_destination(robot_id, destination)
+            else:
+                paths = []
+                for robot_id2 in range(len(self.robots_colors)):
+                    paths += self.check_destination(robot_id2, destination)
+                if len(paths) > 0:
+                    min_length = min(len(p) for p in paths)
+                    paths = [p for p in paths if len(p) == min_length]
+            if len(paths) > 0:
+                print(f'Solution found in {len(paths[0])} moves')
         return paths
 
 
 if __name__ == '__main__':
     # Integration test
     board = Board(['RED1', 'BLUE1', 'YELLOW1', 'GREEN1'],
-                  np.array([[0, 1], [4, 6], [2, 3], [0, 4]]))
+                  np.array([[0, 1], [4, 6], [2, 3], [0, 4], [5, 10]]))
 
     board.print()
-    paths = board.solve('BLUE', 'PLANET')
+    paths = board.solve('BLACK', 'HOLE')

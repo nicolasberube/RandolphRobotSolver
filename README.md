@@ -13,7 +13,6 @@ More info could be found in the literature, which I deliberetaly have not resear
 # First version
 
 This code just passed the integration test. However, many key features are missing:
-- The Gray robot and the BlackHole goal is not coded yet.
 - Bumpers are not implemented.
 - All tiles data are not entered in tiles.json. Only one group of tiles was done so far.
 
